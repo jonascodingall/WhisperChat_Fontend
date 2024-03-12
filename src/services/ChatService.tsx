@@ -1,6 +1,5 @@
 import * as signalR from "@microsoft/signalr";
-import {MessageModel} from "@chatscope/chat-ui-kit-react";
-
+import {MessageMod} from "../models/Message.tsx";
 class ChatService {
     private connection: signalR.HubConnection;
 
@@ -9,6 +8,8 @@ class ChatService {
             .withUrl("https://localhost:7067/chat-hub")
             .withAutomaticReconnect()
             .build();
+
+        this.connection.start().catch(err => console.log(err));
     }
 
     public startConnection = async () => {
@@ -22,23 +23,40 @@ class ChatService {
         }
     };
 
-    public stopConnection = () => {
-        this.connection.stop();
-    };
-
-    public onMessageReceived = (callback: (message: MessageModel) => void) => {
-        this.connection.on("GetMessages", callback);
-    };
-
-    public sendMessage = async (message: MessageModel) => {
+    public getMessages = async (senderId: string, recipientId: string): Promise<MessageMod[]> => {
+        let messages: MessageMod[] = [];
         if (this.connection.state === signalR.HubConnectionState.Connected) {
             try {
-                await this.connection.invoke("SendMessage", message);
+                messages = await this.connection.invoke("GetMessages",senderId, recipientId);
             } catch (err) {
-                console.log(err);
+                console.error(err);
             }
+        } else {
+            console.log("Hub is not connected");
         }
-    };
+        return messages;
+    }
+
+
+    public sendMessage = async (message : MessageMod) => {
+        if(this.connection.state === signalR.HubConnectionState.Connected){
+            try{
+                await this.connection.invoke("SendMessage", JSON.stringify(message));
+            }catch (err){
+                console.error(err)
+            }
+        }else{
+            console.log("Hub is not connected")
+        }
+    }
+    public receiveMessage = (method: (message: any) => void) => {
+        console.log("Alles supa")
+        try{
+            this.connection.on("ReceiveMessage", method);
+        }catch (err){
+            console.error(err)
+        }
+    }
 
 }
 

@@ -1,31 +1,57 @@
-import React, { useState, useEffect } from "react";
-import { Message, MessageList, ChatContainer, ConversationHeader, Avatar, MessageInput, MessageModel } from '@chatscope/chat-ui-kit-react';
-import {UserModel} from "../models/UserModel.tsx";
+import React, { useEffect, useState } from "react";
+import {
+    Message,
+    MessageList,
+    ChatContainer,
+    ConversationHeader,
+    Avatar,
+    MessageInput,
+    Loader,
+} from '@chatscope/chat-ui-kit-react';
+import { UserModel } from "../models/UserModel.tsx";
 import ChatService from "../services/ChatService.tsx";
+import {MessageMod} from "../models/Message.tsx";
 
 interface ChatComponentProps {
+    currentUser: UserModel;
     user: UserModel;
+    chatServiceProp: ChatService;
 }
 
-const ChatComponent: React.FC<ChatComponentProps> = ({ user }) => {
-    const [messages, setMessages] = useState<MessageModel[]>([]);
-    const chatService = new ChatService();
+const ChatComponent: React.FC<ChatComponentProps> = ({ user, currentUser, chatServiceProp }) => {
+    const chatService = chatServiceProp;
+    const [messages, setMessages] = useState<MessageMod[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [messageString, setMessageString] = useState<string>("");
 
     useEffect(() => {
-        const loadMessages = async () => {
-            await chatService.startConnection();
-            chatService.onMessageReceived((message: MessageModel) => {
-                setMessages((prevMessages) => [...prevMessages, message]);
+        chatService.receiveMessage((message) => setMessages([...messages, message]))
+    }, []);
+
+    useEffect(() => {
+        chatService.getMessages(currentUser.id.toString(), user.id.toString())
+            .then((result) => {
+                setMessages(result);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error fetching messages:", error);
+                setLoading(false);
             });
-            //await chatService.sendMessage({message: "Test", sender: user.name, direction: "incoming",position: "single" });
-        };
+    }, [currentUser, user]);
 
-        loadMessages().then(r => console.log(r));
-
-        return () => {
-            chatService.stopConnection();
-        };
-    }, [user]);
+    const handleSend = async () => {
+        if (messageString.trim() !== "") {
+            setMessageString("");
+            const messageModel: MessageMod = {
+                message: messageString,
+                senderId: currentUser.id.toString(),
+                recipientId: user.id.toString(),
+                sendTime: new Date().getTime().toString(),
+            };
+            await chatService.sendMessage(messageModel);
+        }
+    };
 
     return (
         <ChatContainer>
@@ -33,12 +59,23 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ user }) => {
                 <Avatar src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg" />
                 <ConversationHeader.Content userName={user.name} />
             </ConversationHeader>
-            <MessageList>
-                {messages.map((message, index) => (
-                    <Message key={index} model={message} />
-                ))}
-            </MessageList>
-            <MessageInput placeholder="Type message here" />
+
+            {loading ? (
+                <Loader/>
+                ) : (
+                <MessageList>
+                    {messages.map((message, index) => (
+                        <Message key={index} model={{message: message.message, direction: (message.senderId === currentUser.id.toString() ? "outgoing" : "incoming"), position: "single"}}/>
+                    ))}
+                </MessageList>
+            )}
+
+            <MessageInput
+                onSend={handleSend}
+                value={messageString}
+                onChange={(e) => setMessageString(e)}
+                placeholder="Type message here"
+            />
         </ChatContainer>
     );
 };
