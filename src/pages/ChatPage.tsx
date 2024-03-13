@@ -8,7 +8,7 @@ import {
     Search,
 } from '@chatscope/chat-ui-kit-react';
 import ChatComponent from "../components/ChatComponent.tsx";
-import {useMemo, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {UserModel} from "../models/UserModel.tsx";
 import ChatService from "../services/ChatService.tsx";
 
@@ -19,10 +19,7 @@ const ChatPage = () => {
     //@ts-ignore
     const[users, setUsers] = useState<UserModel[]>([{id: 1, name:"Jonas"}, {id: 2, name:"Joline"},{id: 3, name:"Zoe"}]);
     const[currentUserId, setCurrentUserId] = useState<number>(2);
-    const chatService = useMemo(() => {
-        const service = new ChatService();
-        return service;
-    }, []);
+    const chatService = useRef(new ChatService());
 
     const handleConversationClick = (user: UserModel) => {
         setCurrentUserId(user.id)
@@ -44,7 +41,7 @@ const ChatPage = () => {
                         src="https://chatscope.io/storybook/react/assets/lilly-aj6lnGPk.svg"/></Conversation>)}
                 </ConversationList>
             </Sidebar>
-            <ChatComponent user={users.filter(user => user.id == currentUserId)[0]} currentUser={currentUser} chatServiceProp={chatService}></ChatComponent>
+            <ChatComponent user={users.filter(user => user.id == currentUserId)[0]} currentUser={currentUser} chatServiceProp={chatService.current}></ChatComponent>
         </MainContainer>
 
     );

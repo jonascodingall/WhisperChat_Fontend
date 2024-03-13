@@ -24,7 +24,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ user, currentUser, chatSe
     const [loading, setLoading] = useState(true);
     const [messageString, setMessageString] = useState<string>("");
 
+    // Lädt Nachrichten nur wenn der user sich ändert
     useEffect(() => {
+        setLoading(true);
         chatService.getMessages(currentUser.id.toString(), user.id.toString())
             .then((result) => {
                 setMessages(result);
@@ -36,20 +38,32 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ user, currentUser, chatSe
             });
     }, [currentUser, user]);
 
+    // Setzt beim initialisiern fest das wenn eine message recieved wird, dass die dann zu messages hinzugefügt werden
     useEffect(() => {
-        chatService.receiveMessage((message) => setMessages([...messages, message]))
+        const receiveMessageHandler = (message: any) => setMessages( prevmessages => [...prevmessages, message]);
+        chatService.receiveMessage(receiveMessageHandler);
+        chatService.startConnection();
+        return () => {
+            chatService.removeMessageHandler(receiveMessageHandler);
+        };
     }, []);
+
 
     const handleSend = async () => {
         if (messageString.trim() !== "") {
-            setMessageString("");
             const messageModel: MessageMod = {
                 message: messageString,
                 senderId: currentUser.id.toString(),
                 recipientId: user.id.toString(),
                 sendTime: new Date().getTime().toString(),
             };
-            await chatService.sendMessage(messageModel);
+            try {
+                await chatService.sendMessage(messageModel);
+                setMessages(messages => [...messages, messageModel])
+                setMessageString("");
+            } catch (error) {
+                console.error("Error sending message:", error);
+            }
         }
     };
 

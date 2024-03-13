@@ -1,5 +1,6 @@
 import * as signalR from "@microsoft/signalr";
 import {MessageMod} from "../models/Message.tsx";
+
 class ChatService {
     private connection: signalR.HubConnection;
 
@@ -8,8 +9,6 @@ class ChatService {
             .withUrl("https://localhost:7067/chat-hub")
             .withAutomaticReconnect()
             .build();
-
-        this.connection.start().catch(err => console.log(err));
     }
 
     public startConnection = async () => {
@@ -18,7 +17,7 @@ class ChatService {
                 await this.connection.start();
                 console.log("Connection successful!");
             } catch (err) {
-                console.log(err);
+                console.error(err);
             }
         }
     };
@@ -27,7 +26,7 @@ class ChatService {
         let messages: MessageMod[] = [];
         if (this.connection.state === signalR.HubConnectionState.Connected) {
             try {
-                messages = await this.connection.invoke("GetMessages",senderId, recipientId);
+                messages = await this.connection.invoke("GetMessages", senderId, recipientId);
             } catch (err) {
                 console.error(err);
             }
@@ -36,7 +35,6 @@ class ChatService {
         }
         return messages;
     }
-
 
     public sendMessage = async (message : MessageMod) => {
         if(this.connection.state === signalR.HubConnectionState.Connected){
@@ -49,8 +47,8 @@ class ChatService {
             console.log("Hub is not connected")
         }
     }
+
     public receiveMessage = (method: (message: any) => void) => {
-        console.log("Alles supa")
         try{
             this.connection.on("ReceiveMessage", method);
         }catch (err){
@@ -58,6 +56,13 @@ class ChatService {
         }
     }
 
+    public removeMessageHandler = (method: (message: any) => void) => {
+        try{
+            this.connection.off("ReceiveMessage", method);
+        }catch (err){
+            console.error(err)
+        }
+    }
 }
 
 export default ChatService;
